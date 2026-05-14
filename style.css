@@ -129,6 +129,73 @@ body {
     margin-bottom: 20px;
 }
 
+#boat-info-panel.is-collapsed .boat-header {
+    margin-bottom: 0;
+}
+
+.boat-card-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+    padding: 0;
+
+    color: #f5f7ff;
+    background: rgba(255, 255, 255, 0.06);
+
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 50%;
+
+    cursor: pointer;
+
+    transition:
+        background 0.18s ease,
+        border-color 0.18s ease,
+        transform 0.18s ease;
+}
+
+.boat-card-toggle::before {
+    content: "-";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+
+    font-family: Arial, sans-serif;
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1;
+
+    transform: translate(-50%, -53%);
+}
+
+#boat-info-panel.is-collapsed .boat-card-toggle::before {
+    content: "+";
+    transform: translate(-50%, -50%);
+}
+
+.boat-card-toggle:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.22);
+    transform: translateY(-1px);
+}
+
+.boat-card-toggle:active {
+    transform: translateY(0);
+}
+
+.boat-card-toggle:focus-visible {
+    outline: 2px solid rgba(111, 168, 255, 0.9);
+    outline-offset: 3px;
+}
+
+#boat-info-panel.is-collapsed .boat-card-body {
+    display: none;
+}
+
 .boat-flag {
     width: 80px;
     height: auto;

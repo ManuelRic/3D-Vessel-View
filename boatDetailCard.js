@@ -18,66 +18,93 @@ function renderBoatDetails(details) {
                     ${details.type} - IMO ${details.imo}
                 </div>
             </div>
+
+            <button
+                class="boat-card-toggle"
+                type="button"
+                aria-expanded="true"
+                aria-label="Collapse vessel information"
+            ></button>
         </div>
 
-        <div class="boat-section">
-            <div class="boat-section-title">Voyage Data</div>
+        <div class="boat-card-body">
+            <div class="boat-section">
+                <div class="boat-section-title">Voyage Data</div>
 
-            <div class="boat-row">
-                <div class="boat-label">Destination</div>
-                <div class="boat-value">${details.destination}</div>
+                <div class="boat-row">
+                    <div class="boat-label">Destination</div>
+                    <div class="boat-value">${details.destination}</div>
+                </div>
+
+                <div class="boat-row">
+                    <div class="boat-label">ETA</div>
+                    <div class="boat-value">${details.eta}</div>
+                </div>
+
+                <div class="boat-row">
+                    <div class="boat-label">Speed</div>
+                    <div class="boat-value">${details.speed}</div>
+                </div>
+
+                <div class="boat-row">
+                    <div class="boat-label">Course</div>
+                    <div class="boat-value">${details.course}</div>
+                </div>
+
+                <div class="boat-row">
+                    <div class="boat-label">Draught</div>
+                    <div class="boat-value">${details.draught}</div>
+                </div>
+
+                <div class="boat-row">
+                    <div class="boat-label">Navigation</div>
+                    <div class="status-badge">${details.status}</div>
+                </div>
             </div>
 
-            <div class="boat-row">
-                <div class="boat-label">ETA</div>
-                <div class="boat-value">${details.eta}</div>
-            </div>
+            <div class="boat-section">
+                <div class="boat-section-title">Ship Details</div>
 
-            <div class="boat-row">
-                <div class="boat-label">Speed</div>
-                <div class="boat-value">${details.speed}</div>
-            </div>
+                <div class="boat-row">
+                    <div class="boat-label">MMSI</div>
+                    <div class="boat-value">${details.mmsi}</div>
+                </div>
 
-            <div class="boat-row">
-                <div class="boat-label">Course</div>
-                <div class="boat-value">${details.course}</div>
-            </div>
+                <div class="boat-row">
+                    <div class="boat-label">Callsign</div>
+                    <div class="boat-value">${details.callsign}</div>
+                </div>
 
-            <div class="boat-row">
-                <div class="boat-label">Draught</div>
-                <div class="boat-value">${details.draught}</div>
-            </div>
+                <div class="boat-row">
+                    <div class="boat-label">Flag</div>
+                    <div class="boat-value">${details.flag}</div>
+                </div>
 
-            <div class="boat-row">
-                <div class="boat-label">Navigation</div>
-                <div class="status-badge">${details.status}</div>
-            </div>
-        </div>
-
-        <div class="boat-section">
-            <div class="boat-section-title">Ship Details</div>
-
-            <div class="boat-row">
-                <div class="boat-label">MMSI</div>
-                <div class="boat-value">${details.mmsi}</div>
-            </div>
-
-            <div class="boat-row">
-                <div class="boat-label">Callsign</div>
-                <div class="boat-value">${details.callsign}</div>
-            </div>
-
-            <div class="boat-row">
-                <div class="boat-label">Flag</div>
-                <div class="boat-value">${details.flag}</div>
-            </div>
-
-            <div class="boat-row">
-                <div class="boat-label">Length / Beam</div>
-                <div class="boat-value">${details.lengthBeam}</div>
+                <div class="boat-row">
+                    <div class="boat-label">Length / Beam</div>
+                    <div class="boat-value">${details.lengthBeam}</div>
+                </div>
             </div>
         </div>
     `;
+}
+
+function bindCollapseToggle(panel) {
+    const toggle = panel.querySelector('.boat-card-toggle');
+
+    if (!toggle) return;
+
+    toggle.addEventListener('click', function () {
+        const isCollapsed = panel.classList.toggle('is-collapsed');
+
+        toggle.setAttribute('aria-expanded', String(!isCollapsed));
+        toggle.setAttribute(
+            'aria-label',
+            isCollapsed ?
+                'Expand vessel information' :
+                'Collapse vessel information'
+        );
+    });
 }
 
 export function showBoatDetails(details) {
@@ -86,6 +113,8 @@ export function showBoatDetails(details) {
     if (!panel) return;
 
     panel.innerHTML = renderBoatDetails(details);
+    panel.classList.remove('is-collapsed');
+    bindCollapseToggle(panel);
     panel.classList.add('is-visible');
 }
 

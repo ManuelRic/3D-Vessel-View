@@ -747,10 +747,13 @@ function updateShipTrail(ship, now) {
     }
 }
 
+let trailSimulationTime = 0;
+
 function animate() {
     requestAnimationFrame(animate);
 
     water.material.uniforms['time'].value += 1.0 / 60.0;
+    trailSimulationTime += 1.0 / 60.0;
 
     const now = performance.now() / 1000;
 
@@ -761,7 +764,7 @@ function animate() {
     separateOverlappingShips();
 
     ships.forEach(function (ship) {
-        updateShipTrail(ship, now);
+        updateShipTrail(ship, trailSimulationTime);
     });
 
     const isCameraTransitioning = updateCameraTransition(now);
