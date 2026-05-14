@@ -655,9 +655,10 @@ function moveShip(ship) {
     }
 
     const avoidanceDirection = getCollisionAvoidanceDirection(ship);
-    const desiredDirection = toTarget
-        .normalize()
-        .add(avoidanceDirection);
+    const hasCollisionRisk = avoidanceDirection.lengthSq() > 0;
+    const desiredDirection = hasCollisionRisk ?
+        avoidanceDirection.clone() :
+        toTarget.normalize();
 
     if (desiredDirection.lengthSq() === 0) {
         return;
@@ -678,7 +679,7 @@ function moveShip(ship) {
 
     const turnMultiplier =
         ship.emergencyAvoidance ? emergencyTurnMultiplier :
-        avoidanceDirection.lengthSq() > 0 ? avoidanceTurnMultiplier :
+        hasCollisionRisk ? avoidanceTurnMultiplier :
         1;
 
     shipModel.rotation.y +=
