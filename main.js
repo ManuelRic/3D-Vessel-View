@@ -1,0 +1,700 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { Water } from 'three/addons/objects/Water.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {
+    shipsData,
+    shipModelPaths
+} from './boatData.js';
+import {
+    hideBoatDetails,
+    showBoatDetails
+} from './boatDetailCard.js';
+const topViewButton = document.getElementById('top-view-button');
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+// THREE JS BEHAVIOUR
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+
+// -----------------------------
+// SCENE
+// -----------------------------
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050816);
+
+// -----------------------------
+// CAMERA
+// -----------------------------
+const defaultCameraPosition = new THREE.Vector3(0, 80, 180);
+const defaultCameraTarget = new THREE.Vector3(0, 0, 0);
+
+const camera = new THREE.PerspectiveCamera(
+    60,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    5000
+);
+
+camera.position.copy(defaultCameraPosition);
+camera.lookAt(defaultCameraTarget);
+camera.layers.enable(1);
+// -----------------------------
+// RENDERER
+// -----------------------------
+
+const renderer = new THREE.WebGLRenderer({
+    antialias: true
+});
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+document.body.appendChild(renderer.domElement);
+
+// -----------------------------
+// CONTROLS
+// -----------------------------
+
+const controls = new OrbitControls(camera, renderer.domElement);
+
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
+// Right click rotates
+controls.mouseButtons = {
+    LEFT: null,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: THREE.MOUSE.ROTATE
+};
+
+controls.target.set(0, 0, 0);
+controls.update();
+
+// -----------------------------
+// LIGHTS
+// -----------------------------
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+scene.add(ambientLight);
+
+// -----------------------------
+// PLANE
+// -----------------------------
+
+const waterGeometry = new THREE.PlaneGeometry(2000, 1000);
+
+const water = new Water(
+    waterGeometry,
+    {
+        textureWidth: 512,
+        textureHeight: 512,
+
+        waterNormals: new THREE.TextureLoader().load(
+            './textures/water.jpg',
+            function (texture) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            }
+        ),
+
+        sunDirection: new THREE.Vector3(),
+        sunColor: 0xffffff,
+        waterColor: 0x1f4f7a,
+        distortionScale: 3.7,
+        fog: scene.fog !== undefined
+    }
+);
+
+water.rotation.x = -Math.PI / 2;
+water.position.set(0, 0.5, 0);
+scene.add(water);
+
+// -----------------------------
+// BOAT
+// -----------------------------
+
+const gltfLoader = new GLTFLoader();
+
+const ships = [];
+let selectedShip = null;
+let followShip = false;
+let followOffset = new THREE.Vector3(0, 35, 80);
+
+const boatBounds = 420;
+const collisionLookAheadFrames = 420;
+const collisionSafeDistance = 70;
+const collisionClearanceDistance = 45;
+const collisionCorrectionStrength = 1.4;
+const avoidanceTurnMultiplier = 3.5;
+const emergencyTurnMultiplier = 7;
+const emergencySlowdown = 0.35;
+const hullContactClearance = 4;
+const overlapSeparationIterations = 3;
+const headOnBearingLimit = THREE.MathUtils.degToRad(20);
+const crossingBearingLimit = THREE.MathUtils.degToRad(112.5);
+
+function randomBoatPosition() {
+    return (Math.random() - 0.5) * boatBounds;
+}
+
+function getStarboardDirection(forward) {
+    return new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+}
+
+function getRelativeBearing(forward, relativePosition) {
+    const directionToOther = relativePosition.clone().normalize();
+    const starboard = getStarboardDirection(forward);
+
+    return Math.atan2(
+        starboard.dot(directionToOther),
+        forward.dot(directionToOther)
+    );
+}
+
+function getShipForward(ship) {
+    return new THREE.Vector3(0, 0, 1).applyAxisAngle(
+        new THREE.Vector3(0, 1, 0),
+        ship.model.rotation.y - ship.forwardOffset
+    );
+}
+
+function getShipCollisionRadius(shipModel) {
+    const box = new THREE.Box3().setFromObject(shipModel);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    return Math.sqrt(size.x * size.x + size.z * size.z) * 0.5;
+}
+
+function getShipTrailOffset(shipModel) {
+    const box = new THREE.Box3().setFromObject(shipModel);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    return Math.max(size.x, size.z) * 0.5;
+}
+
+function getCollisionSafeDistance(ship, otherShip) {
+    const hullDistance =
+        ship.collisionRadius + otherShip.collisionRadius +
+        collisionClearanceDistance;
+
+    return Math.max(collisionSafeDistance, hullDistance);
+}
+
+function getColregAvoidanceDirection(
+    shipForward,
+    otherForward,
+    relativePosition,
+    shipSpeed,
+    otherSpeed
+) {
+    const bearingToOther = getRelativeBearing(shipForward, relativePosition);
+    const bearingFromOther = getRelativeBearing(
+        otherForward,
+        relativePosition.clone().multiplyScalar(-1)
+    );
+    const headingAlignment = shipForward.dot(otherForward);
+    const otherIsAhead = Math.abs(bearingToOther) < crossingBearingLimit;
+    const shipIsBehindOther = Math.abs(bearingFromOther) > crossingBearingLimit;
+    const shipIsOvertaking =
+        shipIsBehindOther && headingAlignment > 0.45 && shipSpeed > otherSpeed;
+
+    if (shipIsOvertaking) {
+        return getStarboardDirection(shipForward);
+    }
+
+    if (
+        Math.abs(bearingToOther) < headOnBearingLimit &&
+        headingAlignment < -0.55
+    ) {
+        return getStarboardDirection(shipForward);
+    }
+
+    if (otherIsAhead && bearingToOther > 0) {
+        return getStarboardDirection(shipForward);
+    }
+
+    return null;
+}
+
+function getCollisionAvoidanceDirection(ship) {
+    const shipPosition = ship.model.position;
+    const shipForward = getShipForward(ship);
+    const shipVelocity = shipForward.clone().multiplyScalar(ship.speed);
+    const avoidance = new THREE.Vector3();
+    let maxUrgency = 0;
+    let emergency = false;
+
+    ships.forEach(function (otherShip) {
+        if (otherShip === ship) return;
+
+        const otherPosition = otherShip.model.position;
+        const otherForward = getShipForward(otherShip);
+        const otherVelocity = otherForward.clone().multiplyScalar(
+            otherShip.speed
+        );
+
+        const relativePosition = new THREE.Vector3().subVectors(
+            otherPosition,
+            shipPosition
+        );
+        relativePosition.y = 0;
+        const currentDistance = relativePosition.length();
+        const pairSafeDistance = getCollisionSafeDistance(ship, otherShip);
+
+        const relativeVelocity = new THREE.Vector3().subVectors(
+            otherVelocity,
+            shipVelocity
+        );
+        relativeVelocity.y = 0;
+
+        const relativeSpeedSquared = relativeVelocity.lengthSq();
+        if (relativeSpeedSquared < 0.000001) {
+            if (currentDistance >= pairSafeDistance) return;
+
+            const escapeDirection =
+                currentDistance > 0 ?
+                relativePosition.clone().multiplyScalar(-1).normalize() :
+                getStarboardDirection(shipForward);
+            const urgency = 1 - currentDistance / pairSafeDistance;
+
+            emergency = true;
+            maxUrgency = Math.max(maxUrgency, urgency);
+            avoidance.addScaledVector(
+                escapeDirection,
+                urgency * collisionCorrectionStrength
+            );
+            return;
+        }
+
+        const closestTime = THREE.MathUtils.clamp(
+            -relativePosition.dot(relativeVelocity) / relativeSpeedSquared,
+            0,
+            collisionLookAheadFrames
+        );
+
+        const futureSeparation = relativePosition.clone().addScaledVector(
+            relativeVelocity,
+            closestTime
+        );
+        const futureDistance = futureSeparation.length();
+
+        if (
+            futureDistance >= pairSafeDistance &&
+            currentDistance >= pairSafeDistance
+        ) {
+            return;
+        }
+
+        let avoidanceDirection = getColregAvoidanceDirection(
+            shipForward,
+            otherForward,
+            relativePosition,
+            ship.speed,
+            otherShip.speed
+        );
+
+        const currentUrgency = 1 - currentDistance / pairSafeDistance;
+        const futureUrgency = 1 - futureDistance / pairSafeDistance;
+        const urgency = Math.max(currentUrgency, futureUrgency);
+        const closingFast = relativePosition.dot(relativeVelocity) < 0;
+
+        if (!avoidanceDirection && urgency > 0.35 && closingFast) {
+            const escapeDirection = relativePosition.clone().multiplyScalar(-1);
+            escapeDirection.y = 0;
+
+            if (escapeDirection.lengthSq() > 0) {
+                avoidanceDirection = escapeDirection.normalize();
+            }
+        }
+
+        if (!avoidanceDirection) return;
+
+        if (urgency > 0.45 || currentDistance < pairSafeDistance * 0.75) {
+            emergency = true;
+        }
+
+        maxUrgency = Math.max(maxUrgency, urgency);
+
+        avoidance.addScaledVector(
+            avoidanceDirection,
+            urgency * collisionCorrectionStrength
+        );
+    });
+
+    ship.avoidanceUrgency = maxUrgency;
+    ship.emergencyAvoidance = emergency;
+
+    return avoidance;
+}
+
+function separateOverlappingShips() {
+    for (
+        let iteration = 0;
+        iteration < overlapSeparationIterations;
+        iteration += 1
+    ) {
+        for (let i = 0; i < ships.length; i += 1) {
+            for (let j = i + 1; j < ships.length; j += 1) {
+                const ship = ships[i];
+                const otherShip = ships[j];
+                const separation = new THREE.Vector3().subVectors(
+                    otherShip.model.position,
+                    ship.model.position
+                );
+
+                separation.y = 0;
+
+                const distance = separation.length();
+                const hullContactDistance =
+                    ship.collisionRadius + otherShip.collisionRadius +
+                    hullContactClearance;
+
+                if (distance >= hullContactDistance) continue;
+
+                const pushDirection = distance > 0 ?
+                    separation.normalize() :
+                    getStarboardDirection(getShipForward(ship));
+                const overlap = hullContactDistance - distance;
+                const pushAmount = overlap * 0.5;
+
+                ship.model.position.addScaledVector(
+                    pushDirection,
+                    -pushAmount
+                );
+                otherShip.model.position.addScaledVector(
+                    pushDirection,
+                    pushAmount
+                );
+            }
+        }
+    }
+}
+
+shipsData.forEach(function (shipData) {
+    const modelPath = shipModelPaths[shipData.shipType];
+
+    if (!modelPath) {
+        console.error('Missing model path for ship type:', shipData.shipType);
+        return;
+    }
+
+    gltfLoader.load(
+        modelPath,
+
+        function (gltf) {
+            const shipModel = gltf.scene.clone(true);
+
+            shipModel.position.set(
+                shipData.startPosition.x,
+                shipData.startPosition.y,
+                shipData.startPosition.z
+            );
+
+            const shipScale = shipData.scale ?? 1;
+
+            shipModel.scale.set(
+                shipScale,
+                shipScale,
+                shipScale
+            );
+
+            scene.add(shipModel);
+
+            const collisionRadius = getShipCollisionRadius(shipModel);
+            const trailOffset =
+                getShipTrailOffset(shipModel) *
+                (shipData.trailOffsetMultiplier ?? 1);
+
+            ships.push({
+                model: shipModel,
+                details: shipData,
+                target: new THREE.Vector3(
+                    randomBoatPosition(),
+                    shipData.startPosition.y,
+                    randomBoatPosition()
+                ),
+                speed: shipData.moveSpeed,
+                turnSpeed: shipData.turnSpeed,
+                forwardOffset: shipData.forwardOffset,
+                trailPositions: [],
+                trailTimes: [],
+                trailLine: null,
+                trailColor: shipData.trailColor,
+                collisionRadius: collisionRadius,
+                trailOffset: trailOffset,
+            });
+
+            console.log('Ship loaded:', shipData.name, modelPath);
+        },
+
+        undefined,
+
+        function (error) {
+            console.error('Error loading ship:', shipData.name, error);
+        }
+    );
+});
+
+// -----------------------------
+// RAYCASTER
+// -----------------------------
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// -----------------------------
+// BOAT CENTER
+// -----------------------------
+
+function getShipCenter(shipModel) {
+    const box = new THREE.Box3().setFromObject(shipModel);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    return center;
+}
+
+// -----------------------------
+// CLICK HANDLER
+// -----------------------------
+window.addEventListener('click', function (event) {
+
+    if (ships.length === 0) return;
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const shipModels = ships.map(ship => ship.model);
+    const hits = raycaster.intersectObjects(shipModels, true);
+
+    if (hits.length === 0) return;
+
+    const clickedObject = hits[0].object;
+
+    const clickedShip = ships.find(function (ship) {
+        let current = clickedObject;
+
+        while (current) {
+            if (current === ship.model) return true;
+            current = current.parent;
+        }
+
+        return false;
+    });
+
+    if (!clickedShip) return;
+
+    if (selectedShip === clickedShip && followShip) {
+        followShip = false;
+        selectedShip = null;
+
+        camera.position.copy(defaultCameraPosition);
+        controls.target.copy(defaultCameraTarget);
+        controls.update();
+
+        hideBoatDetails();
+        return;
+    }
+
+    selectedShip = clickedShip;
+    followShip = true;
+
+    const shipCenter = getShipCenter(clickedShip.model);
+
+    followOffset.set(0, 35, 80);
+
+    camera.position.copy(shipCenter).add(followOffset);
+    controls.target.copy(shipCenter);
+    controls.update();
+
+    showBoatDetails(clickedShip.details);
+});
+
+// -----------------------------
+// BIRD VIEW
+// -----------------------------
+topViewButton.addEventListener('click', function () {
+
+    followShip = false;
+    selectedShip = null;
+
+    const center = new THREE.Vector3(0, 0, 0);
+
+    camera.position.set(0, 800, 0);
+
+    controls.target.copy(center);
+
+    camera.lookAt(center);
+
+    controls.update();
+
+    hideBoatDetails();
+});
+
+// -----------------------------
+// ANIMATION LOOP
+// -----------------------------
+
+/* UPDATE SHIP MOVEMENT */
+function moveShip(ship) {
+    const shipModel = ship.model;
+
+    const toTarget = new THREE.Vector3().subVectors(
+        ship.target,
+        shipModel.position
+    );
+
+    toTarget.y = 0;
+
+    const distance = toTarget.length();
+
+    if (distance < 15) {
+        ship.target.set(
+            randomBoatPosition(),
+            shipModel.position.y,
+            randomBoatPosition()
+        );
+
+        return;
+    }
+
+    const avoidanceDirection = getCollisionAvoidanceDirection(ship);
+    const desiredDirection = toTarget
+        .normalize()
+        .add(avoidanceDirection);
+
+    if (desiredDirection.lengthSq() === 0) {
+        return;
+    }
+
+    desiredDirection.normalize();
+
+    const targetAngle =
+        Math.atan2(desiredDirection.x, desiredDirection.z) +
+        ship.forwardOffset;
+
+    let angleDifference = targetAngle - shipModel.rotation.y;
+
+    angleDifference = Math.atan2(
+        Math.sin(angleDifference),
+        Math.cos(angleDifference)
+    );
+
+    const turnMultiplier =
+        ship.emergencyAvoidance ? emergencyTurnMultiplier :
+        avoidanceDirection.lengthSq() > 0 ? avoidanceTurnMultiplier :
+        1;
+
+    shipModel.rotation.y +=
+        angleDifference * ship.turnSpeed * turnMultiplier;
+
+    const forward = getShipForward(ship);
+    const speedMultiplier = ship.emergencyAvoidance ?
+        emergencySlowdown :
+        1 - ship.avoidanceUrgency * 0.35;
+
+    shipModel.position.addScaledVector(
+        forward,
+        ship.speed * Math.max(speedMultiplier, emergencySlowdown)
+    );
+}
+
+/* UPDATE SHIP TRAIL */
+function updateShipTrail(ship, now) {
+    const forward = getShipForward(ship);
+
+    const position = ship.model.position.clone();
+
+    position.addScaledVector(forward, -ship.trailOffset);
+
+    position.y = 1;
+
+    ship.trailPositions.push(position);
+    ship.trailTimes.push(now);
+
+    while (
+        ship.trailTimes.length > 0 &&
+        now - ship.trailTimes[0] > 120
+    ) {
+        ship.trailTimes.shift();
+        ship.trailPositions.shift();
+    }
+
+    if (ship.trailPositions.length < 2) {
+        return;
+    }
+
+    const trailCurve = new THREE.CatmullRomCurve3(ship.trailPositions);
+    const trailGeometry = new THREE.TubeGeometry(
+        trailCurve,
+        Math.min(ship.trailPositions.length * 2, 200),
+        1,
+        8,
+        false
+    );
+
+    if (!ship.trailLine) {
+        const material = new THREE.MeshBasicMaterial({
+            color: ship.trailColor,
+            transparent: true,
+            opacity: 0.8,
+            depthWrite: false
+        });
+
+        ship.trailLine = new THREE.Mesh(trailGeometry, material);
+        ship.trailLine.layers.set(1);
+        scene.add(ship.trailLine);
+    } else {
+        ship.trailLine.geometry.dispose();
+        ship.trailLine.geometry = trailGeometry;
+    }
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    water.material.uniforms['time'].value += 1.0 / 60.0;
+
+    const now = performance.now() / 1000;
+
+    ships.forEach(function (ship) {
+        moveShip(ship);
+    });
+
+    separateOverlappingShips();
+
+    ships.forEach(function (ship) {
+        updateShipTrail(ship, now);
+    });
+
+    if (selectedShip && followShip) {
+        const shipCenter = getShipCenter(selectedShip.model);
+
+        followOffset.copy(camera.position).sub(controls.target);
+
+        const desiredCameraPosition = new THREE.Vector3()
+            .copy(shipCenter)
+            .add(followOffset);
+
+        camera.position.lerp(desiredCameraPosition, 0.08);
+        controls.target.lerp(shipCenter, 0.08);
+    }
+
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+animate();
+
+// -----------------------------
+// RESIZE
+// -----------------------------
+
+window.addEventListener('resize', function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
