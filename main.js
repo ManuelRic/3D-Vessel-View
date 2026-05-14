@@ -56,9 +56,10 @@ document.body.appendChild(renderer.domElement);
 // -----------------------------
 
 const controls = new OrbitControls(camera, renderer.domElement);
+const cameraDampingFactor = 0.12;
 
 controls.enableDamping = true;
-controls.dampingFactor = 0.05;
+controls.dampingFactor = cameraDampingFactor;
 
 // Right click rotates
 controls.mouseButtons = {
@@ -69,6 +70,13 @@ controls.mouseButtons = {
 
 controls.target.set(0, 0, 0);
 controls.update();
+
+function clearCameraMomentum() {
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = true;
+    controls.dampingFactor = cameraDampingFactor;
+}
 
 // -----------------------------
 // LIGHTS
@@ -519,6 +527,7 @@ topViewButton.addEventListener('click', function () {
 
     followShip = false;
     selectedShip = null;
+    clearCameraMomentum();
 
     const center = new THREE.Vector3(0, 0, 0);
 
