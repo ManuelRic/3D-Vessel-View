@@ -57,6 +57,8 @@ document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 const cameraDampingFactor = 0.12;
+const cameraTransitionDuration = 0.35;
+let cameraTransition = null;
 
 controls.enableDamping = true;
 controls.dampingFactor = cameraDampingFactor;
@@ -76,6 +78,54 @@ function clearCameraMomentum() {
     controls.update();
     controls.enableDamping = true;
     controls.dampingFactor = cameraDampingFactor;
+}
+
+function easeOutCubic(value) {
+    return 1 - Math.pow(1 - value, 3);
+}
+
+function startCameraTransition(position, target) {
+    clearCameraMomentum();
+
+    cameraTransition = {
+        startTime: performance.now() / 1000,
+        duration: cameraTransitionDuration,
+        startPosition: camera.position.clone(),
+        endPosition: position.clone(),
+        startTarget: controls.target.clone(),
+        endTarget: target.clone()
+    };
+}
+
+function updateCameraTransition(now) {
+    if (!cameraTransition) return false;
+
+    const progress = THREE.MathUtils.clamp(
+        (now - cameraTransition.startTime) / cameraTransition.duration,
+        0,
+        1
+    );
+    const easedProgress = easeOutCubic(progress);
+
+    camera.position.lerpVectors(
+        cameraTransition.startPosition,
+        cameraTransition.endPosition,
+        easedProgress
+    );
+    controls.target.lerpVectors(
+        cameraTransition.startTarget,
+        cameraTransition.endTarget,
+        easedProgress
+    );
+
+    if (progress >= 1) {
+        camera.position.copy(cameraTransition.endPosition);
+        controls.target.copy(cameraTransition.endTarget);
+        cameraTransition = null;
+        clearCameraMomentum();
+    }
+
+    return true;
 }
 
 // -----------------------------
@@ -498,9 +548,10 @@ window.addEventListener('click', function (event) {
         followShip = false;
         selectedShip = null;
 
-        camera.position.copy(defaultCameraPosition);
-        controls.target.copy(defaultCameraTarget);
-        controls.update();
+        startCameraTransition(
+            defaultCameraPosition,
+            defaultCameraTarget
+        );
 
         hideBoatDetails();
         return;
@@ -513,9 +564,10 @@ window.addEventListener('click', function (event) {
 
     followOffset.set(0, 35, 80);
 
-    camera.position.copy(shipCenter).add(followOffset);
-    controls.target.copy(shipCenter);
-    controls.update();
+    startCameraTransition(
+        new THREE.Vector3().copy(shipCenter).add(followOffset),
+        shipCenter
+    );
 
     showBoatDetails(clickedShip.details);
 });
@@ -531,13 +583,10 @@ topViewButton.addEventListener('click', function () {
 
     const center = new THREE.Vector3(0, 0, 0);
 
-    camera.position.set(0, 800, 0);
-
-    controls.target.copy(center);
-
-    camera.lookAt(center);
-
-    controls.update();
+    startCameraTransition(
+        new THREE.Vector3(0, 800, 0),
+        center
+    );
 
     hideBoatDetails();
 });
@@ -678,7 +727,9 @@ function animate() {
         updateShipTrail(ship, now);
     });
 
-    if (selectedShip && followShip) {
+    const isCameraTransitioning = updateCameraTransition(now);
+
+    if (selectedShip && followShip && !isCameraTransitioning) {
         const shipCenter = getShipCenter(selectedShip.model);
 
         followOffset.copy(camera.position).sub(controls.target);
