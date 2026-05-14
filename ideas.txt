@@ -10,7 +10,7 @@ Now:
     add settings menu
     add avatar
     option to only show certain vessels or remove certain type of vessels (e.g. view only tug boats)
-
+    add skybox
 Future:
 
     better textures and lighting
