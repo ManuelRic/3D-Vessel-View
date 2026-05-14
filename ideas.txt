@@ -1,0 +1,23 @@
+Now:    
+    add vessel name on hover
+    add vessel trail on hover
+    single click vessel info, double click zoom in +extra info
+    enable/disable vessel trail individually for each vessel
+    add cranes
+    add collision (no phase through so when tug boats push it will be aesthetically pleasing)
+    add always on/off trail option in vessel info
+    add trail on/off button for all trails (maybe except explictly always on or off)
+    add settings menu
+    add avatar
+    option to only show certain vessels or remove certain type of vessels (e.g. view only tug boats)
+
+Future:
+
+    better textures and lighting
+
+    add clock with current date-time
+
+    add meotorological conditions
+
+
+    change to angular
