@@ -58,6 +58,8 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 const cameraDampingFactor = 0.12;
 const cameraTransitionDuration = 0.35;
+const minShipFocusDistance = 65;
+const maxShipFocusDistance = 150;
 let cameraTransition = null;
 
 controls.enableDamping = true;
@@ -126,6 +128,36 @@ function updateCameraTransition(now) {
     }
 
     return true;
+}
+
+function getCurrentCameraOffset() {
+    if (cameraTransition) {
+        return new THREE.Vector3().subVectors(
+            cameraTransition.endPosition,
+            cameraTransition.endTarget
+        );
+    }
+
+    return new THREE.Vector3().subVectors(
+        camera.position,
+        controls.target
+    );
+}
+
+function getShipFocusOffset() {
+    const offset = getCurrentCameraOffset();
+
+    if (offset.lengthSq() === 0) {
+        return followOffset.clone();
+    }
+
+    const distance = THREE.MathUtils.clamp(
+        offset.length(),
+        minShipFocusDistance,
+        maxShipFocusDistance
+    );
+
+    return offset.normalize().multiplyScalar(distance);
 }
 
 // -----------------------------
@@ -229,6 +261,10 @@ function getShipTrailOffset(shipModel) {
     box.getSize(size);
 
     return Math.max(size.x, size.z) * 0.5;
+}
+
+function getVibrantTrailColor(color) {
+    return new THREE.Color(color).multiplyScalar(1.8);
 }
 
 function getCollisionSafeDistance(ship, otherShip) {
@@ -562,7 +598,7 @@ window.addEventListener('click', function (event) {
 
     const shipCenter = getShipCenter(clickedShip.model);
 
-    followOffset.set(0, 35, 80);
+    followOffset.copy(getShipFocusOffset());
 
     startCameraTransition(
         new THREE.Vector3().copy(shipCenter).add(followOffset),
@@ -695,9 +731,9 @@ function updateShipTrail(ship, now) {
 
     if (!ship.trailLine) {
         const material = new THREE.MeshBasicMaterial({
-            color: ship.trailColor,
+            color: getVibrantTrailColor(ship.trailColor),
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.95,
             depthWrite: false
         });
 
