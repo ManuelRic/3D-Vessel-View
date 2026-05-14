@@ -137,7 +137,6 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    position: relative;
 
     width: 28px;
     height: 28px;
@@ -158,23 +157,15 @@ body {
         transform 0.18s ease;
 }
 
-.boat-card-toggle::before {
-    content: "-";
-    position: absolute;
-    left: 50%;
-    top: 50%;
+.boat-card-toggle-icon {
+    width: 18px;
+    height: 18px;
 
-    font-family: Arial, sans-serif;
-    font-size: 20px;
-    font-weight: 400;
-    line-height: 1;
-
-    transform: translate(-50%, -53%);
+    transition: transform 0.22s ease;
 }
 
-#boat-info-panel.is-collapsed .boat-card-toggle::before {
-    content: "+";
-    transform: translate(-50%, -50%);
+#boat-info-panel.is-collapsed .boat-card-toggle-icon {
+    transform: rotate(180deg);
 }
 
 .boat-card-toggle:hover {

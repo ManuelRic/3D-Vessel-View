@@ -24,7 +24,24 @@ function renderBoatDetails(details) {
                 type="button"
                 aria-expanded="true"
                 aria-label="Collapse vessel information"
-            ></button>
+            >
+                <svg
+                    class="boat-card-toggle-icon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 512 512"
+                    role="img"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M170.5 213.5L256 299l85.5-85.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="43"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+            </button>
         </div>
 
         <div class="boat-card-body">
