@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-import { GroundedSkybox } from 'three/addons/objects/GroundedSkybox.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Water } from 'three/addons/objects/Water.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import {
     shipsData,
     shipModelPaths
@@ -23,7 +22,74 @@ import {
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050816);
-scene.fog = new THREE.Fog(0x9fb8c8, 1200, 4200);
+/* 
+function createProceduralSkyTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 1024;
+
+    const context = canvas.getContext('2d');
+    const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
+
+    skyGradient.addColorStop(0, '#2f6da8');
+    skyGradient.addColorStop(0.34, '#78acd4');
+    skyGradient.addColorStop(0.48, '#d7e6ed');
+    skyGradient.addColorStop(0.53, '#9fc0c7');
+    skyGradient.addColorStop(1, '#2c6077');
+
+    context.fillStyle = skyGradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    for (let i = 0; i < 34; i += 1) {
+        const x = (i * 281) % canvas.width;
+        const y = 90 + ((i * 73) % 260);
+        const width = 80 + ((i * 37) % 170);
+        const height = 12 + ((i * 19) % 30);
+
+        context.beginPath();
+        context.ellipse(x, y, width, height, 0, 0, Math.PI * 2);
+        context.ellipse(x + width * 0.45, y + 6, width * 0.72, height * 0.8, 0, 0, Math.PI * 2);
+        context.ellipse(x - width * 0.35, y + 4, width * 0.58, height * 0.75, 0, 0, Math.PI * 2);
+        context.fill();
+    }
+
+    const hazeGradient = context.createLinearGradient(
+        0,
+        canvas.height * 0.42,
+        0,
+        canvas.height * 0.56
+    );
+
+    hazeGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    hazeGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.42)');
+    hazeGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    context.fillStyle = hazeGradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.colorSpace = THREE.SRGBColorSpace;
+
+    return texture;
+} */
+
+
+
+new RGBELoader().load(
+    './images/sky/pure_sky_4k.hdr',
+    function (texture) {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+
+        scene.background = texture;
+        scene.environment = null;
+    },
+    undefined,
+    function (error) {
+        console.error('Error loading HDR skybox:', error);
+    }
+);
 
 // -----------------------------
 // CAMERA
@@ -35,7 +101,7 @@ const camera = new THREE.PerspectiveCamera(
     60,
     window.innerWidth / window.innerHeight,
     0.1,
-    5000
+    15000
 );
 
 camera.position.copy(defaultCameraPosition);
@@ -59,12 +125,16 @@ document.body.appendChild(renderer.domElement);
 // -----------------------------
 // LIGHTS
 // -----------------------------
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+let light = 2.5;
+
+const ambientLight = new THREE.AmbientLight(0xffffff, light/8);
 scene.add(ambientLight);
 
-const sunLight = new THREE.DirectionalLight(0xffffff, 3);
+const sunLight = new THREE.DirectionalLight(0xffffff, light);
 sunLight.position.set(80, 120, 60);
 scene.add(sunLight);
+
+const sunDirection = sunLight.position.clone().normalize();
 
 // -----------------------------
 // BUTTONS
@@ -184,14 +254,17 @@ function getShipFocusOffset() {
 // -----------------------------
 // WATER
 // -----------------------------
-
-const waterGeometry = new THREE.PlaneGeometry(6000, 6000);
+const waterWidth = 3000;
+const waterHeight = 3000;
+const waterGeometry = new THREE.PlaneGeometry(waterWidth, waterHeight);
+const darkWaterColor = new THREE.Color(0x02070c);
+const litWaterColor = new THREE.Color(0x1f4f7a);
 
 const water = new Water(
     waterGeometry,
     {
-        textureWidth: 512,
-        textureHeight: 512,
+        textureWidth: 1024,
+        textureHeight: 1024,
 
         waterNormals: new THREE.TextureLoader().load(
             './textures/water.jpg',
@@ -200,17 +273,34 @@ const water = new Water(
             }
         ),
 
-        sunDirection: new THREE.Vector3(),
-        sunColor: 0xffffff,
+        sunDirection: sunDirection,
+        sunColor: sunLight.color,
         waterColor: 0x1f4f7a,
-        distortionScale: 3.7,
-        fog: scene.fog !== undefined
+        distortionScale: 1.2
     }
 );
 
 water.rotation.x = -Math.PI / 2;
 water.position.set(0, 0.5, 0);
 scene.add(water);
+
+function updateWaterSunFromLight() {
+    const lightLevel = THREE.MathUtils.clamp(sunLight.intensity / 1.5, 0, 1);
+
+    water.material.uniforms['sunDirection'].value
+        .copy(sunLight.position)
+        .normalize();
+
+    water.material.uniforms['sunColor'].value
+        .copy(sunLight.color)
+        .multiplyScalar(lightLevel);
+
+    water.material.uniforms['waterColor'].value
+        .copy(darkWaterColor)
+        .lerp(litWaterColor, lightLevel);
+}
+
+updateWaterSunFromLight();
 // -----------------------------
 // BOAT
 // -----------------------------
@@ -766,8 +856,7 @@ let trailSimulationTime = 0;
 function animate() {
     requestAnimationFrame(animate);
 
-    water.position.x = camera.position.x;
-    water.position.z = camera.position.z;
+    updateWaterSunFromLight();
     water.material.uniforms['time'].value += 1.0 / 60.0;
     trailSimulationTime += 1.0 / 60.0;
 
