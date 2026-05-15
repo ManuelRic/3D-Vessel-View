@@ -276,7 +276,7 @@ const water = new Water(
         sunDirection: sunDirection,
         sunColor: sunLight.color,
         waterColor: 0x1f4f7a,
-        distortionScale: 1.2
+        distortionScale: 1,
     }
 );
 
@@ -618,6 +618,7 @@ shipsData.forEach(function (shipData) {
                 trailPositions: [],
                 trailTimes: [],
                 trailLine: null,
+                trailOutlineLine: null,
                 trailColor: shipData.trailColor,
                 collisionRadius: collisionRadius,
                 trailOffset: trailOffset,
@@ -641,6 +642,33 @@ shipsData.forEach(function (shipData) {
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+function getShipUnderMouse(event) {
+    if (ships.length === 0) return null;
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const shipModels = ships.map(ship => ship.model);
+    const hits = raycaster.intersectObjects(shipModels, true);
+
+    if (hits.length === 0) return null;
+
+    const hitObject = hits[0].object;
+
+    return ships.find(function (ship) {
+        let current = hitObject;
+
+        while (current) {
+            if (current === ship.model) return true;
+            current = current.parent;
+        }
+
+        return false;
+    }) ?? null;
+}
+
 // -----------------------------
 // BOAT CENTER
 // -----------------------------
@@ -657,32 +685,12 @@ function getShipCenter(shipModel) {
 // -----------------------------
 window.addEventListener('click', function (event) {
 
-    if (ships.length === 0) return;
-
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-
-    const shipModels = ships.map(ship => ship.model);
-    const hits = raycaster.intersectObjects(shipModels, true);
-
-    if (hits.length === 0) return;
-
-    const clickedObject = hits[0].object;
-
-    const clickedShip = ships.find(function (ship) {
-        let current = clickedObject;
-
-        while (current) {
-            if (current === ship.model) return true;
-            current = current.parent;
-        }
-
-        return false;
-    });
+    const clickedShip = getShipUnderMouse(event);
 
     if (!clickedShip) return;
+
+    clearHoverTimer();
+    hideVesselHoverLabel();
 
     if (selectedShip === clickedShip && followShip) {
         followShip = false;
@@ -712,9 +720,79 @@ window.addEventListener('click', function (event) {
     showBoatDetails(clickedShip.details);
 });
 
+
+// -----------------------------
+// VESSEL HOVER
+// -----------------------------
+
+const vesselHoverLabel = document.getElementById('vessel-hover-label');
+const vesselHoverDelay = 1500;
+let hoveredShip = null;
+let hoverTimeout = null;
+let latestHoverEvent = null;
+
+function clearHoverTimer() {
+    if (!hoverTimeout) return;
+
+    clearTimeout(hoverTimeout);
+    hoverTimeout = null;
+}
+
+function hideVesselHoverLabel() {
+    if (!vesselHoverLabel) return;
+
+    vesselHoverLabel.style.display = 'none';
+}
+
+function showVesselHoverLabel(ship, event) {
+    if (!vesselHoverLabel) return;
+
+    vesselHoverLabel.textContent = ship.details.name;
+    vesselHoverLabel.style.left = `${event.clientX}px`;
+    vesselHoverLabel.style.top = `${event.clientY}px`;
+    vesselHoverLabel.style.display = 'block';
+}
+
+window.addEventListener('mousemove', function (event) {
+    latestHoverEvent = event;
+
+    const ship = getShipUnderMouse(event);
+
+    if (!ship) {
+        hoveredShip = null;
+        clearHoverTimer();
+        hideVesselHoverLabel();
+        return;
+    }
+
+    if (ship === selectedShip) {
+        hoveredShip = null;
+        clearHoverTimer();
+        hideVesselHoverLabel();
+        return;
+    }
+
+    if (ship !== hoveredShip) {
+        hoveredShip = ship;
+        clearHoverTimer();
+        hideVesselHoverLabel();
+
+        hoverTimeout = setTimeout(function () {
+            if (hoveredShip === ship && latestHoverEvent) {
+                showVesselHoverLabel(ship, latestHoverEvent);
+            }
+        }, vesselHoverDelay);
+    }
+
+    if (vesselHoverLabel && vesselHoverLabel.style.display === 'block') {
+        showVesselHoverLabel(ship, event);
+    }
+});
+
 // -----------------------------
 // BIRD VIEW
 // -----------------------------
+
 topViewButton.addEventListener('click', function () {
 
     followShip = false;
@@ -808,7 +886,7 @@ function updateShipTrail(ship, now) {
 
     position.addScaledVector(forward, -ship.trailOffset);
 
-    position.y = 1;
+    position.y = 2;
 
     ship.trailPositions.push(position);
     ship.trailTimes.push(now);
@@ -834,7 +912,35 @@ function updateShipTrail(ship, now) {
         false
     );
 
+    // TRAIL OUTLINE SECTION START
+    // Delete this section plus the matching update/create lines below if you
+    // want to remove the trail outline later.
+    const trailOutlineGeometry = new THREE.TubeGeometry(
+        trailCurve,
+        Math.min(ship.trailPositions.length * 2, 200),
+        1.55,
+        8,
+        false
+    );
+    // TRAIL OUTLINE SECTION END
+
     if (!ship.trailLine) {
+        // TRAIL OUTLINE SECTION START
+        const outlineMaterial = new THREE.MeshBasicMaterial({
+            color: 0x06101f,
+            transparent: true,
+            opacity: 0.9,
+            depthWrite: false
+        });
+
+        ship.trailOutlineLine = new THREE.Mesh(
+            trailOutlineGeometry,
+            outlineMaterial
+        );
+        ship.trailOutlineLine.layers.set(1);
+        scene.add(ship.trailOutlineLine);
+        // TRAIL OUTLINE SECTION END
+
         const material = new THREE.MeshBasicMaterial({
             color: getVibrantTrailColor(ship.trailColor),
             transparent: true,
@@ -846,6 +952,11 @@ function updateShipTrail(ship, now) {
         ship.trailLine.layers.set(1);
         scene.add(ship.trailLine);
     } else {
+        // TRAIL OUTLINE SECTION START
+        ship.trailOutlineLine.geometry.dispose();
+        ship.trailOutlineLine.geometry = trailOutlineGeometry;
+        // TRAIL OUTLINE SECTION END
+
         ship.trailLine.geometry.dispose();
         ship.trailLine.geometry = trailGeometry;
     }
