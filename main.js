@@ -912,35 +912,7 @@ function updateShipTrail(ship, now) {
         false
     );
 
-    // TRAIL OUTLINE SECTION START
-    // Delete this section plus the matching update/create lines below if you
-    // want to remove the trail outline later.
-    const trailOutlineGeometry = new THREE.TubeGeometry(
-        trailCurve,
-        Math.min(ship.trailPositions.length * 2, 200),
-        1.55,
-        8,
-        false
-    );
-    // TRAIL OUTLINE SECTION END
-
     if (!ship.trailLine) {
-        // TRAIL OUTLINE SECTION START
-        const outlineMaterial = new THREE.MeshBasicMaterial({
-            color: 0x06101f,
-            transparent: true,
-            opacity: 0.9,
-            depthWrite: false
-        });
-
-        ship.trailOutlineLine = new THREE.Mesh(
-            trailOutlineGeometry,
-            outlineMaterial
-        );
-        ship.trailOutlineLine.layers.set(1);
-        scene.add(ship.trailOutlineLine);
-        // TRAIL OUTLINE SECTION END
-
         const material = new THREE.MeshBasicMaterial({
             color: getVibrantTrailColor(ship.trailColor),
             transparent: true,
@@ -952,11 +924,6 @@ function updateShipTrail(ship, now) {
         ship.trailLine.layers.set(1);
         scene.add(ship.trailLine);
     } else {
-        // TRAIL OUTLINE SECTION START
-        ship.trailOutlineLine.geometry.dispose();
-        ship.trailOutlineLine.geometry = trailOutlineGeometry;
-        // TRAIL OUTLINE SECTION END
-
         ship.trailLine.geometry.dispose();
         ship.trailLine.geometry = trailGeometry;
     }
