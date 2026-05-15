@@ -1,5 +1,5 @@
 Now:    
-    add vessel name on hover
+    ✅ add vessel name on hover
     add vessel trail on hover
     single click vessel info, double click zoom in +extra info
     enable/disable vessel trail individually for each vessel
@@ -13,7 +13,7 @@ Now:
     add skybox ------> removed (changed for bg image to prevent reflection issues)
     real time sun and light position
     compass
-    ✅smooth transition on vessel info card
+    ✅ smooth transition on vessel info card
 
 Future:
     better textures and lighting

@@ -19,7 +19,7 @@ body {
     position: absolute;
     top: 20px;
     left: 20px;
-    z-index: 1000;
+    z-index: 10;
 }
 
 .top-view-icon {
@@ -78,6 +78,28 @@ body {
     outline-offset: 3px;
 }
 
+#datetime-widget {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+
+    width: max-content;
+
+    padding: 8px 12px;
+
+    color: #f5f7ff;
+    background: rgba(10, 14, 28, 0.88);
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+
+    font-size: 13px;
+    font-weight: 600;
+
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
 /* -----------------------------
    VESSEL HOVER
 ----------------------------- */

@@ -11,6 +11,8 @@ import {
     hideBoatDetails,
     showBoatDetails
 } from './boatDetailCard.js';
+import { initDateTimeWidget } from './generalData.js';
+initDateTimeWidget();
 
 // -------------------------------------------------------------------------------------------------------------------------------------------------
 // THREE JS BEHAVIOUR
@@ -22,59 +24,10 @@ import {
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050816);
-/* 
-function createProceduralSkyTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 2048;
-    canvas.height = 1024;
 
-    const context = canvas.getContext('2d');
-    const skyGradient = context.createLinearGradient(0, 0, 0, canvas.height);
-
-    skyGradient.addColorStop(0, '#2f6da8');
-    skyGradient.addColorStop(0.34, '#78acd4');
-    skyGradient.addColorStop(0.48, '#d7e6ed');
-    skyGradient.addColorStop(0.53, '#9fc0c7');
-    skyGradient.addColorStop(1, '#2c6077');
-
-    context.fillStyle = skyGradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    context.fillStyle = 'rgba(255, 255, 255, 0.55)';
-    for (let i = 0; i < 34; i += 1) {
-        const x = (i * 281) % canvas.width;
-        const y = 90 + ((i * 73) % 260);
-        const width = 80 + ((i * 37) % 170);
-        const height = 12 + ((i * 19) % 30);
-
-        context.beginPath();
-        context.ellipse(x, y, width, height, 0, 0, Math.PI * 2);
-        context.ellipse(x + width * 0.45, y + 6, width * 0.72, height * 0.8, 0, 0, Math.PI * 2);
-        context.ellipse(x - width * 0.35, y + 4, width * 0.58, height * 0.75, 0, 0, Math.PI * 2);
-        context.fill();
-    }
-
-    const hazeGradient = context.createLinearGradient(
-        0,
-        canvas.height * 0.42,
-        0,
-        canvas.height * 0.56
-    );
-
-    hazeGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-    hazeGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.42)');
-    hazeGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-    context.fillStyle = hazeGradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    texture.colorSpace = THREE.SRGBColorSpace;
-
-    return texture;
-} */
-
+// -----------------------------
+// Sky
+// -----------------------------
 
 
 new RGBELoader().load(
