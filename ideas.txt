@@ -4,7 +4,7 @@ Now:
     single click vessel info, double click zoom in +extra info
     enable/disable vessel trail individually for each vessel
     add cranes
-    add collision (no phase through so when tug boats push it will be aesthetically pleasing)
+    add collision (no phase through so when tug boats push it will be aesthetically pleasing)?
     add always on/off trail option in vessel info
     add trail on/off button for all trails (maybe except explictly always on or off)
     add settings menu
@@ -13,12 +13,16 @@ Now:
     add skybox ------> removed (changed for bg image to prevent reflection issues)
     real time sun and light position
     compass
-    add ship box collider for hover and click events
+    enable disable water reflection/texture
+    enable disable light direction
+    add small map to move camera around? 
     ✅ smooth transition on vessel info card
+
+    !Implement all control features
 
 Future:
     better textures and lighting
-    reactive water texture
+    reactive water texture  ==> https://github.com/martinRenou/threejs-water !!!
     make water reflection only visible from sun direction side
     add clock with current date-time
     add meotorological conditions

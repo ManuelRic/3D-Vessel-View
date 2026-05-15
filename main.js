@@ -263,10 +263,11 @@ const gltfLoader = new GLTFLoader();
 const ships = [];
 let selectedShip = null;
 let followShip = false;
+let focusedShip = false;
 let followOffset = new THREE.Vector3(0, 35, 80);
 
-const boatBounds = 420;
-const collisionLookAheadFrames = 420;
+const boatBounds = 1500;
+const collisionLookAheadFrames = 1500;
 const collisionSafeDistance = 70;
 const collisionClearanceDistance = 45;
 const collisionCorrectionStrength = 1.4;
@@ -320,7 +321,17 @@ function getShipTrailOffset(shipModel) {
 }
 
 function getVibrantTrailColor(color) {
-    return new THREE.Color(color).multiplyScalar(1.8);
+    const trailColor = new THREE.Color(color);
+
+    const hsl = {};
+    trailColor.getHSL(hsl);
+
+    hsl.s = Math.min(hsl.s * 1.5, 1);
+    hsl.l = Math.min(hsl.l * 1.25, 0.75);
+
+    trailColor.setHSL(hsl.h, hsl.s, hsl.l);
+
+    return trailColor;
 }
 
 function getCollisionSafeDistance(ship, otherShip) {
@@ -645,13 +656,7 @@ window.addEventListener('click', function (event) {
     hideVesselHoverLabel();
 
      if (selectedShip === clickedShip) {
-        followShip = false;
         selectedShip = null;
-
-        startCameraTransition(
-            defaultCameraPosition,
-            defaultCameraTarget
-        );
 
         hideBoatDetails();
         return;
@@ -671,8 +676,9 @@ window.addEventListener('dblclick', function (event) {
     clearHoverTimer();
     hideVesselHoverLabel();
 
-    if (selectedShip === clickedShip && followShip) {
+    if (focusedShip === clickedShip && followShip) {
         followShip = false;
+        focusedShip = false;
         selectedShip = null;
 
         startCameraTransition(
@@ -684,6 +690,7 @@ window.addEventListener('dblclick', function (event) {
         return;
     }
 
+    focusedShip = clickedShip;
     selectedShip = clickedShip;
     followShip = true;
 
@@ -885,9 +892,9 @@ function updateShipTrail(ship, now) {
     const trailCurve = new THREE.CatmullRomCurve3(ship.trailPositions);
     const trailGeometry = new THREE.TubeGeometry(
         trailCurve,
-        Math.min(ship.trailPositions.length * 2, 200),
+        Math.min(ship.trailPositions.length * 2, 100),
         1,
-        8,
+        10,
         false
     );
 
@@ -895,7 +902,7 @@ function updateShipTrail(ship, now) {
         const material = new THREE.MeshBasicMaterial({
             color: getVibrantTrailColor(ship.trailColor),
             transparent: true,
-            opacity: 0.95,
+            opacity: 1,
             depthWrite: false
         });
 
@@ -931,8 +938,8 @@ function animate() {
 
     const isCameraTransitioning = updateCameraTransition(now);
 
-    if (selectedShip && followShip && !isCameraTransitioning) {
-        const shipCenter = getShipCenter(selectedShip.model);
+    if (focusedShip && followShip && !isCameraTransitioning) {
+        const shipCenter = getShipCenter(focusedShip.model);
 
         followOffset.copy(camera.position).sub(controls.target);
 
