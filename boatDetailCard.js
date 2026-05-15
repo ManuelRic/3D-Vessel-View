@@ -5,6 +5,27 @@ function getBoatInfoPanel() {
 function renderBoatDetails(details) {
     return `
         <div class="boat-header">
+            <button
+                class="boat-card-close"
+                type="button"
+                aria-label="Close vessel information"
+            >
+                <svg
+                    class="boat-card-close-icon"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 512 512"
+                    aria-hidden="true"
+                    focusable="false"
+                >
+                    <path
+                        d="M193 193L319 319M319 193L193 319"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="45"
+                        stroke-linecap="round"
+                    />
+                </svg>
+            </button>
             <img
                 class="boat-flag"
                 src="${details.flagImage}"
@@ -18,7 +39,7 @@ function renderBoatDetails(details) {
                     ${details.type} - IMO ${details.imo}
                 </div>
             </div>
-
+            
             <button
                 class="boat-card-toggle"
                 type="button"
@@ -132,6 +153,7 @@ export function showBoatDetails(details) {
     panel.innerHTML = renderBoatDetails(details);
     panel.classList.remove('is-collapsed');
     bindCollapseToggle(panel);
+    bindCloseButton(panel);
     panel.classList.add('is-visible');
 }
 
@@ -141,4 +163,12 @@ export function hideBoatDetails() {
     if (!panel) return;
 
     panel.classList.remove('is-visible');
+}
+
+function bindCloseButton(panel) {
+    const closeButton = panel.querySelector('.boat-card-close');
+
+    if (!closeButton) return;
+
+    closeButton.addEventListener('click', hideBoatDetails);
 }

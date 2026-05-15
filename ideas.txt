@@ -13,6 +13,7 @@ Now:
     add skybox ------> removed (changed for bg image to prevent reflection issues)
     real time sun and light position
     compass
+    add ship box collider for hover and click events
     ✅ smooth transition on vessel info card
 
 Future:

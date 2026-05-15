@@ -619,7 +619,7 @@ function getShipUnderMouse(event) {
         }
 
         return false;
-    }) ?? null;
+    });
 }
 
 // -----------------------------
@@ -637,6 +637,32 @@ function getShipCenter(shipModel) {
 // CLICK HANDLER
 // -----------------------------
 window.addEventListener('click', function (event) {
+    const clickedShip = getShipUnderMouse(event);
+
+    if (!clickedShip) return;
+
+    clearHoverTimer();
+    hideVesselHoverLabel();
+
+     if (selectedShip === clickedShip) {
+        followShip = false;
+        selectedShip = null;
+
+        startCameraTransition(
+            defaultCameraPosition,
+            defaultCameraTarget
+        );
+
+        hideBoatDetails();
+        return;
+    }
+
+    selectedShip = clickedShip;
+
+    showBoatDetails(clickedShip.details);
+});
+
+window.addEventListener('dblclick', function (event) {
 
     const clickedShip = getShipUnderMouse(event);
 
@@ -679,7 +705,7 @@ window.addEventListener('click', function (event) {
 // -----------------------------
 
 const vesselHoverLabel = document.getElementById('vessel-hover-label');
-const vesselHoverDelay = 1500;
+const vesselHoverDelay = 500;
 let hoveredShip = null;
 let hoverTimeout = null;
 let latestHoverEvent = null;
