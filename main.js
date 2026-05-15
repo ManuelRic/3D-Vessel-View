@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Water } from 'three/addons/objects/Water.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { GroundedSkybox } from 'three/addons/objects/GroundedSkybox.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Water } from 'three/addons/objects/Water.js';
 import {
     shipsData,
     shipModelPaths
@@ -10,7 +12,7 @@ import {
     hideBoatDetails,
     showBoatDetails
 } from './boatDetailCard.js';
-const topViewButton = document.getElementById('top-view-button');
+
 // -------------------------------------------------------------------------------------------------------------------------------------------------
 // THREE JS BEHAVIOUR
 // -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -21,6 +23,7 @@ const topViewButton = document.getElementById('top-view-button');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050816);
+scene.fog = new THREE.Fog(0x9fb8c8, 1200, 4200);
 
 // -----------------------------
 // CAMERA
@@ -48,8 +51,26 @@ const renderer = new THREE.WebGLRenderer({
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1;
 
 document.body.appendChild(renderer.domElement);
+
+// -----------------------------
+// LIGHTS
+// -----------------------------
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 3);
+sunLight.position.set(80, 120, 60);
+scene.add(sunLight);
+
+// -----------------------------
+// BUTTONS
+// -----------------------------
+
+const topViewButton = document.getElementById('top-view-button');
 
 // -----------------------------
 // CONTROLS
@@ -161,17 +182,10 @@ function getShipFocusOffset() {
 }
 
 // -----------------------------
-// LIGHTS
+// WATER
 // -----------------------------
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-scene.add(ambientLight);
-
-// -----------------------------
-// PLANE
-// -----------------------------
-
-const waterGeometry = new THREE.PlaneGeometry(2000, 1000);
+const waterGeometry = new THREE.PlaneGeometry(6000, 6000);
 
 const water = new Water(
     waterGeometry,
@@ -197,7 +211,6 @@ const water = new Water(
 water.rotation.x = -Math.PI / 2;
 water.position.set(0, 0.5, 0);
 scene.add(water);
-
 // -----------------------------
 // BOAT
 // -----------------------------
@@ -511,6 +524,7 @@ shipsData.forEach(function (shipData) {
                 speed: shipData.moveSpeed,
                 turnSpeed: shipData.turnSpeed,
                 forwardOffset: shipData.forwardOffset,
+                scale: shipScale,
                 trailPositions: [],
                 trailTimes: [],
                 trailLine: null,
@@ -752,6 +766,8 @@ let trailSimulationTime = 0;
 function animate() {
     requestAnimationFrame(animate);
 
+    water.position.x = camera.position.x;
+    water.position.z = camera.position.z;
     water.material.uniforms['time'].value += 1.0 / 60.0;
     trailSimulationTime += 1.0 / 60.0;
 

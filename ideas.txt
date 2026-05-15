@@ -11,13 +11,13 @@ Now:
     add avatar
     option to only show certain vessels or remove certain type of vessels (e.g. view only tug boats)
     add skybox
+    real time sun and light position
+    compass
+    smooth transition on vessel info card
 Future:
 
     better textures and lighting
-
+    reactive water texture
     add clock with current date-time
-
     add meotorological conditions
-
-
     change to angular
